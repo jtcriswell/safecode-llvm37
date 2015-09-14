@@ -1,0 +1,48 @@
+%%=============================================================================
+\section{Source Code Layout}
+\label{section:layout}
+%%=============================================================================
+
+The SAFECode analysis and transformation sources are organized as follows:
+
+\begin{enumerate}
+\item{{\tt lib/ArrayBoundChecks}:}
+This library contains several analysis passes for static array bounds
+checking.
+
+\item{{\tt lib/InsertPoolChecks}:}
+This library contains the transform passes for inserting run-time
+checks and for inserting code to register memory objects within
+individual pools.  It also contains the CompleteChecks pass which
+implements the Check Completion Phase.
+
+\item{{\tt lib/OptimizeChecks}:}
+This library contains several passes for optimizing run-time checks.
+
+\item{{\tt lib/RewriteOOB}:}
+This library contains passes for implementing Ruwase/Lam pointer
+rewriting.  This code allows SAFECode to tolerate out-of-bounds pointers
+that are never dereferenced.
+
+\item{{\tt lib/DebugInstrumentation}:}
+This library implements code that modifies run-time checks to contain
+additional debug information (if such debug information is present in the
+program).  It is used in SAFECode's debug tool mode.
+
+\item{{\tt lib/DanglingPointers}:}
+This library contains a pass that modifies a program to perform
+dangling pointer detection.
+\end{enumerate}
+
+SAFECode also contains a few run-time libraries that are linked into
+programs:
+
+\begin{enumerate}
+\item{{\tt runtime/BitmapPoolAllocator}:}
+This run-time library implements a pool memory allocator for SAFECode.
+
+\item{{\tt runtime/DebugRuntime}:}
+This run-time library implements the run-time checks used by SAFECode.
+Despite the name, it currently contains implementations of both the
+production and debug mode run-time checks.
+\end{enumerate}

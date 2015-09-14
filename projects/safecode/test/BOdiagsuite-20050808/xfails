@@ -1,0 +1,40 @@
+# Incorrect shmget() parameters on linux lead to assert() errors in the
+# basic-00013* family.
+basic-00013-large.c linux
+basic-00013-med.c *
+basic-00013-min.c *
+basic-00013-ok.c linux
+
+# Internal buffer overflow across structure fields
+basic-00019-med.c *
+basic-00019-min.c *
+basic-00021-min.c *
+basic-00023-min.c *
+basic-00028-min.c *
+basic-00028-med.c *
+basic-00030-min.c *
+
+# Internal buffer overflow into structure padding area
+basic-00022-min.c *
+basic-00024-min.c *
+basic-00025-min.c *
+basic-00026-min.c *
+basic-00031-min.c *
+basic-00032-min.c *
+basic-00033-min.c *
+
+# Requires extra libraries on linux
+basic-00177-large.c linux
+basic-00177-med.c linux
+basic-00177-min.c linux
+basic-00177-ok.c linux
+
+# Requires extra command line arguments
+basic-00180-large.c *
+basic-00180-med.c *
+basic-00180-min.c *
+
+# Requires extra environment variables
+basic-00181-large.c *
+basic-00181-med.c *
+basic-00181-min.c *

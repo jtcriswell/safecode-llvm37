@@ -1,0 +1,13 @@
+* 0. Add "#include poolcheck.h" in the kernel pool allocator runtime 
+1. You need to add statements corresponding to those within POOLCHECKINSERT macro in PoolAllocatorBitMask.cpp in to the kernel allocator
+2. Replace malloc with kmalloc equivalent in poolcheck.cpp 
+* 3. Do not allow the poolallocator to release memory to the system 
+4. PoolCheck.cpp uses PageSize defined in PoolAllocatorBitMask.cpp , you need to adjust it to Slab Size in the kernel pool allocator
+5. Add two functions to return splay tree and poolcheckslab in PoolAllocator.h
+
+System functions/features that poolcheck library depends upon:
+
+1. memory allocation function (malloc/kmalloc)
+2. function to call if run-time checks fail
+3. function to call if splay tree code fails
+

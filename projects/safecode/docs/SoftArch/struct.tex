@@ -1,0 +1,114 @@
+%%=============================================================================
+\section{SAFECode Compiler Structure}
+\label{section:struct}
+%%=============================================================================
+
+%%-----------------------------------------------------------------------------
+\subsection{SAFECode Compiler Design Principles}
+\label{section:struct:principles}
+%%-----------------------------------------------------------------------------
+
+SAFECode is implemented as a set of LLVM analysis and transform
+passes.  One important question in designing SAFECode was how to split
+up the work of transforms between different LLVM passes.
+
+The following principles guide the design of SAFECode's software
+architecture.  They are based on standard good practice in compiler
+design as well as observations made while maintaining and improving
+SAFECode:
+
+\begin{enumerate}
+\item{\textbf{Separation of Concerns:}}
+
+SAFECode passes should be as simple as possible.  Previous versions of
+SAFECode had passes that performed both run-time check instrumentation
+and optimization of the run-time checks.  This created a situation in
+which code was complex and passes had a dozen different options to
+turn features on and off.
+
+By separating concerns, each pass is smaller, easier to read, and
+easier to understand.  It also makes the software more flexible;
+features can be enabled and disabled by simply choosing to run or not
+run a particular transform pass.  This is useful for measuring the
+impact of optimizations as well as allowing tools like {\tt bugpoint}
+to better isolate bugs.
+
+\item{\textbf{Enable Integration into LLVM and Clang:}}
+
+At some point in the future, we (or others) may want to integrate
+parts of SAFECode into LLVM and/or Clang.  Doing so would have many
+benefits, including wide-scale adoption, better integration with the
+compiler tool-chain, and additional developers.
+
+To make integration into other LLVM projects easier, SAFECode attempts
+to adhere to the next principle.
+
+\item{\textbf{Make Whole-Program Analysis an Optimization:}}
+
+A simple approach to implementing SAFECode is to first run
+whole-program analysis passes to infer properties about the program
+and then to have transforms use this information to instrument the
+code with run-time checks when necessary.  The problem is that LLVM
+performs whole-program analysis in the linker; the linker, in turn,
+runs LLVM transform passes more or less unconditionally.
+
+Therefore, we want SAFECode instrumentation passes to require no
+whole-program analysis at all and write the more sophisticated
+features into optimizations on run-time checks.  The front-end (e.g.,
+Clang) can then decide whether to instrument a program and run a
+simple transform pass.  The linker can then check to see if the
+program contains any run-time checks and, if so, improve or optimize
+those checks using whole-program analysis techniques.
+\end{enumerate}
+ 
+%%-----------------------------------------------------------------------------
+\subsection{Compilation Phases}
+\label{section:struct:phases}
+%%-----------------------------------------------------------------------------
+
+SAFECode's various transform passes can be, roughly speaking, grouped
+into several phases as follows:
+
+\begin{enumerate}
+\item{\textbf{Check Insertion Phase:}}
+
+In this phase, SAFECode examines the code for operations which may
+cause a memory safety error and inserts run-time checks as needed.
+These run-time checks are simple and do not assume that everything
+about the program is known.  They are designed so that they can be
+used by a front-end (like Clang) to instrument programs.
+
+\item{\textbf{Check Optimization Phase:}}
+
+During this phase, SAFECode attempts to optimize the run-time checks
+it inserted in the Check Insertion Phase.  Some of these optimizations
+do not require whole program analysis and could be integrated into a
+front-end compiler; others do require whole-program analysis and would
+normally be implemented in an optimizing linker.
+
+A key feature of these optimization passes is that they work on both
+instrumented and uninstrumented code.  If there are no run-time checks
+to optimize, they should do nothing.
+
+An important optimization that is executed during this phase is
+Automatic Pool Allocation.  Automatic Pool Allocation will change all
+heap allocations to allocate memory out of distinct pools, and it will
+also modify run-time checks to include pool handles; the run-time
+checks can use these pool handles to speed up their checks or to make
+their checks more strict.
+
+\item{\textbf{Check Completion Phase:}}
+
+The Check Completion Phase uses whole-program analysis to modify the run-time
+checks in a program with completeness information.  Completeness means
+that everything that can be known about a memory object is known to
+the compiler, and therefore the run-time check can be more strict
+about what it considers to be correct behavior.
+
+\item{\textbf{Debug Instrumentation Phase:}}
+
+Finally, there's a phase for instrumenting the run-time checks with
+debug information if the user wants to use SAFECode more as a debugger
+than as a production-use memory safety system.
+\end{enumerate}
+

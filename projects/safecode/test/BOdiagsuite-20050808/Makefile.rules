@@ -1,0 +1,67 @@
+##===- safecode/test/Makefile.rules---------------------*- Makefile -*-===##
+#
+# This file defines how to generate SAFECode files from bitcodes.
+#
+##===------------------------------------------------------------------===##
+
+SC := $(LLVM_OBJ_ROOT)/projects/safecode/$(CONFIGURATION)/bin/sc
+
+PA_RT_FILES      = libsc_dbg_rt.bca libpoolalloc_bitmap.bca 
+PA_RT_BC  := $(addprefix $(PROJ_OBJ_ROOT)/$(CONFIGURATION)/lib/, $(PA_RT_FILES))
+PA_PRE_RT_BC     := $(POOLALLOC_OBJDIR)/$(CONFIGURATION)/lib/libpa_pre_rt.bca
+POOLSYSTEM_RT_BC := $(PROJ_OBJ_ROOT)/$(CONFIGURATION)/lib/libUserPoolSystem.bca
+
+#
+# Pathnames to libraries containing LLVM analysis and transform passes
+#
+DSA_SO    := $(POOLALLOC_OBJDIR)/$(CONFIGURATION)/lib/libLLVMDataStructure$(SHLIBEXT)
+ASSIST_SO := $(POOLALLOC_OBJDIR)/$(CONFIGURATION)/lib/libAssistDS$(SHLIBEXT)
+
+PRE_SC_OPT_FLAGS = -load $(DSA_SO) -load $(ASSIST_SO) -instnamer -internalize -indclone -funcspec -ipsccp -deadargelim -instcombine -globaldce -licm
+
+OPTZN_PASSES := -strip-debug -std-compile-opts $(EXTRA_LOPT_OPTIONS)
+
+#
+# Create the SAFECode'ed executable from the assembly code
+#
+ifeq ($(OS),Darwin)
+%.sc: %.s
+	$(CC) $(CFLAGS) $< $(LLCLIBS) $(LDFLAGS) -o $@ -lstdc++ -lpthread -lm
+else
+%.sc: %.s
+	$(CC) $(CFLAGS) $< $(LLCLIBS) $(LDFLAGS) -o $@ -lstdc++ -lrt -lpthread -lm
+endif
+
+#
+# Generate assembly code from the optimized, SAFECode'd program.
+#
+%.s: %.bc.scopt
+	echo "LLC" $<
+	$(LLC) $(LLCFLAGS) -f $< -o $@
+
+#
+# Take the output of SAFECode, link in the SAFECode run-time, and optimize it.
+#
+%.bc.scopt: %.bc.sc.linked
+	echo "OPT" $<
+	$(LOPT) $(OPTZN_PASSES) $< -f -o $@
+
+%.bc.sc.linked: %.bc.sc $(PA_RT_BC)
+	$(LLVMLDPROG) -disable-opt -link-as-library $? -o $@
+
+#
+# Run SAFECode on the program.
+#
+%.bc.sc: %.bc.pa $(SC)
+	$(SC) $(SCFLAGS) $< -f -o $@
+
+#
+# Do initial linking of the SAFECode run-time and optimize the program.
+#
+%.bc.pa: %.bc.pa.linked
+	@echo "PA-OPT" $<	
+	@$(LOPT) $(PRE_SC_OPT_FLAGS) $< -f -o $@
+
+%.bc.pa.linked: %.bc $(PA_PRE_RT_BC)
+	@echo "PA-RT" $<	
+	@$(LLVMLDPROG) $(LLVMLDFLAGS) -disable-opt -link-as-library $< $(PA_PRE_RT_BC) -o $@

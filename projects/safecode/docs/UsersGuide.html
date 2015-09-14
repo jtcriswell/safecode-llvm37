@@ -1,0 +1,263 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+                      "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>SAFECode Users Guide</title>
+  <link rel="stylesheet" href="llvm.css" type="text/css">
+</head>
+
+<body>
+
+<div class="doc_title">
+SAFECode Users Guide
+</div>
+
+<!-- ********************************************************************** -->
+<!-- * Table of Contents                                                  * -->
+<!-- ********************************************************************** -->
+<ul>
+  <li><a href="#overview">Overview</a></li>
+  <li><a href="#compile">Compiling a Program with SAFECode</a></li>
+  <li><a href="#sample">Sample Debugging with SAFECode</a></li>
+  <li><a href="SoftBoundCETS.html"> Using Experimental SoftBoundCETS Memory Safety Checking</a></li>
+</ul>
+
+<!-- ********************************************************************** -->
+<!-- * Authors                                                            * -->
+<!-- ********************************************************************** -->
+<div class="doc_author">
+  <p>Written by the LLVM Research Group</p>
+</div>
+
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="overview"><b>Overview</b></a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>
+The SAFECode compiler is a memory safety compiler built using the LLVM Compiler
+Infrastructure and the Clang compiler driver.  A memory safety compiler is a
+compiler that inserts run-time checks into a program during compilation to
+catch memory safety errors at run-time.  Such errors can include buffer
+overflows, invalid frees, and dangling pointer dereferences.
+</p>
+
+<p>
+With additional instrumentation to track debugging information, a memory safety
+compiler can be used to find and diagnose memory safety errors in programs
+(this functionality is similar to what
+<a href="http://valgrind.org/">Valgrind</a> does).
+</p>
+
+<p>
+This manual will show how to compile a program with the SAFECode compiler and
+how to read the diagnostic output when a memory safety error occurs.
+</p>
+</div>
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="compile"><b>Compiling a Program with SAFECode</b></a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>
+The easiest way to use SAFECode is to use the modified version of Clang that
+comes in the SAFECode distribution.  When used in this way, the SAFECode
+transforms are performed transparently by the Clang compiler.
+</p>
+
+<p>
+To activate the SAFECode transforms during compilation, add the
+<i>-fmemsafety</i> command-line option to the Clang command line:
+
+<ul>
+  <li><tt>clang -g -fmemsafety -c -o <i>file.o</i> <i>file.c</i></tt></li>
+</ul>
+
+You may also need to add a <tt>-L$PREFIX/lib</tt> option to the link
+command-line to indicate where the libraries are
+located; <tt>$PREFIX</tt> is the directory into which SAFECode was installed:
+
+<ul>
+  <li><tt>clang -fmemsafety -o <i>file</i> <i>file1.o</i> <i>file2.o</i> ...
+  -L$PREFIX/lib</tt></li>
+</ul>
+</p>
+
+Finally, you may want to utilize SAFECode's whole-program analysis features;
+these features allow SAFECode to detect more memory safety errors and to
+optimize its run-time checks.  To use this feature, just add the
+<tt>-flto</tt> option to the command line (and <tt>-use-gold-plugin</tt> if you
+are using SAFECode on Linux):
+
+<ul>
+  <li><b>Mac OS X:</b> <tt>clang -flto -fmemsafety -o <i>file</i> <i>file1.o</i> <i>file2.o</i> ...
+  -L$PREFIX/lib</tt></li>
+    <li><b>Linux:</b> <tt>clang -flto -use-gold-plugin -fmemsafety -o <i>file</i> <i>file1.o</i> <i>file2.o</i> ...
+  -L$PREFIX/lib</tt></li>
+</ul>
+
+<p>
+That's it!  Note the use of the <tt>-g</tt> option; that generates debugging
+information that the SAFECode transforms can use to enhance its run-time
+checks.  The <tt>-fmemsafety-logfile</tt> option can be used to specify a file
+into which memory safety errors are recorded (by default, they are printed to
+standard error).
+</p>
+
+<p>
+To configure an autoconf-based software package to use SAFECode, do
+the following:
+</p>
+
+<ol>
+<li> Set the environment variable CC to $PREFIX/clang.</li>
+<li> Set the environment variable CXX to $PREFIX/clang++.</li>
+<li> Set the environment variable CFLAGS to "-g -fmemsafety -flto"</li>
+<li> Set the environment variable LDFLAGS to "-L$PREFIX/lib"
+where $PREFIX is the directory into which SAFECode was installed.</li>
+<li> Run the configure script</li>
+<li> Type "make" to compile the source code.</li>
+</ol>
+
+Note that some configure scripts may not use the LDFLAGS variable
+properly.  If the above directions do not work, try setting CFLAGS to
+"-g -fmemsafety -L$PREFIX/lib".
+</div>
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="sample"><b>Sample Debugging with SAFECode</b></a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+<p>
+Let's say that we have the following C program:
+</p>
+
+<pre>
+  1 #include "stdio.h"
+  2 #include "stdlib.h"
+  3 
+  4 int
+  5 foo (char * bar) {
+  6   for (unsigned index = 0; index < 10; ++index)
+  7     bar[index] = 'a';
+  8   return 0;
+  9 }
+ 10 
+ 11 int
+ 12 main (int argc, char ** argv) {
+ 13   char * array[100];
+ 14   int max = atoi (argv[1]);
+ 15 
+ 16   for (int index = max; index >= 0; --index) {
+ 17     array[index] = malloc (index+1);
+ 18   }
+ 19 
+ 20   for (int index = max; index >= 0; --index) {
+ 21     foo (array[index]);
+ 22   }
+ 23 
+ 24   exit (0);
+ 25 }
+</pre>
+
+<p>
+Lines 16-18 allocate character arrays of decreasing size, starting with the
+argument plus one specified by the user down to an array of one character.
+Lines 20-22 then call the function <tt>foo()</tt> which accesses elements 0-9
+of the array.
+</p>
+
+<p>
+If we compile this program with SAFECode and execute it:
+<ul>
+  <li><tt>clang -g -fmemsafety -o <i>test</i> <i>test.c</i></tt></li>
+  <li><tt>./test 10</tt></li>
+</ul>
+
+We'll get the following error report:
+</p>
+
+<pre>
+=======+++++++    SAFECODE RUNTIME ALERT +++++++=======
+= Error type                            : Load/Store Error
+= Faulting pointer                      : 0x100100679
+= Program counter                       : 0x100002493
+= Fault PC Source                       : /Users/criswell/tmp/safecode/test/test.c:7
+=
+= Object allocated at PC                : 0x100002ad6
+= Allocated in Source File              : /Users/criswell/tmp/safecode/test/test.c:17
+= Object allocation sequence number     : 3
+= Object start                          : 0x100100670
+= Object length                         : 0x9
+</pre>
+
+<p>
+The first thing to note is the error type.  SAFECode is reporting a load/store
+error, meaning that some memory access is trying to access a memory location
+that it should not.  The second thing to note is the faulting pointer field
+(<tt>0x100100679</tt>) which tells us the pointer value that was invalid.
+SAFECode reports that the error occurred on line 7 of test.c; this is what we
+expect because that is the line in <tt>foo()</tt> that accesses out-of-bounds
+memory.
+</p>
+
+<p>
+Now look at the "Object start" and "Object length" fields in the report:
+</p>
+
+<pre>
+= Object start                          :       0x100100670
+= Object length                         :       0x9
+</pre>
+
+<p>
+Because this is a load/store error, SAFECode is telling us that a pointer
+started out within the bounds of the memory object starting at 0x100100670 with
+length 0x9 but that it went out of bounds to 0x100100679 and was subsequently
+dereferenced.  SAFECode can do this using a technique called pointer rewriting;
+when a pointer goes out of bounds, SAFECode changes it to point to a reserved,
+unmapped region in the program's virtual address space.  SAFECode tracks enough
+metadata about memory objects that if it ever detects a dereference of a
+rewritten pointer (like the example above), it can report the bounds of the
+original object from which the pointer came.  Not only that, SAFECode can even
+tell us the source line information about the location at which the memory
+object was allocated:
+
+<pre>
+= Allocated in Source File              : /Users/criswell/tmp/safecode/test/test.c:17
+</pre>
+</p>
+
+<p>
+Finally, notice the allocation sequence number:
+</p>
+
+<pre>
+= Object allocation sequence number     :       3
+</pre>
+
+<p>
+A particular source line may be executed multiple times and allocate many
+objects.  The sequence number above tells us that the memory object was the
+third memory object allocated at the allocation site in <tt>main()</tt>.  This
+information could be used, for example, to set a breakpoint at the memory
+allocation site that doesn't trigger until the memory object experiencing the
+error is actually allocated.
+</p>
+
+</div>
+</body>
+</html>
+

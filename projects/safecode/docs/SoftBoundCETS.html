@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+                      "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Using SoftBoundCETS Memory Safety Checking</title>
+  <link rel="stylesheet" href="llvm.css" type="text/css">
+</head>
+
+<body>
+
+<div class="doc_title">
+SoftBoundCETS Users Guide
+</div>
+
+<!-- ********************************************************************** -->
+<!-- * Table of Contents                                                  * -->
+<!-- ********************************************************************** -->
+<ul>
+  <li><a href="#overview">Overview</a></li>
+  <li><a href="#compile">Compiling a Program with SoftBoundCETS</a></li>
+  <li><a href="#sample">Sample Debugging with SoftBoundCETS</a></li>
+</ul>
+
+<!-- ********************************************************************** -->
+<!-- * Authors                                                            * -->
+<!-- ********************************************************************** -->
+<div class="doc_author">
+  <p>Written by Santosh Nagarakatte</p>
+</div>
+
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="overview"><b>Overview</b></a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>
+The SoftBoundCETS transformation is a memory safety transformation
+that is a part of the SAFECode compiler, which is a memory safety
+compiler built using the LLVM Compiler Infrastructure and the Clang
+compiler driver.  A memory safety compiler is a compiler that inserts
+run-time checks into a program during compilation to catch memory
+safety errors at run-time.  Such errors can include buffer overflows,
+invalid frees, and dangling pointer dereferences.
+</p>
+
+<p>
+This manual will show how to compile programs with SoftBoundCETS and
+how to read the diagnostic output when a memory safety error occurs.
+</p>
+</div>
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="compile"><b>Compiling a Program with SoftBoundCETS</b></a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>
+The easiest way to use SoftBoundCETS is to use the modified version of
+Clang that comes in the SAFECode distribution.  Alternatively, the whole
+program analysis version of SoftBoundCETS can be downloaded
+from the <a href="http://www.cis.upenn.edu/acg/softbound/"> SoftBoundCETS
+website</a>.  Transforms are performed transparently by the Clang
+compiler.
+</p>
+
+<p>
+To compile programs with SoftBoundCETS memory safety transformation, add the
+<i>-fsoftbound</i> command-line option to the Clang command line:
+
+<ul>
+  <li><tt>clang -g -fsoftbound -c -o <i>file.o</i> <i>file.c</i></tt></li>
+</ul>
+
+You may also need to add a <tt>-L$PREFIX/lib</tt> option to the link
+command-line to indicate where the libraries are
+located; <tt>$PREFIX</tt> is the directory into which SAFECode was installed:
+
+<ul>
+  <li><tt>clang -fsoftbound -o <i>file</i> <i>file1.o</i> <i>file2.o</i> ...
+  -L$PREFIX/lib</tt></li>
+</ul>
+</p>
+
+<p>
+To configure an autoconf-based software package to use SoftBoundCETS
+in the SAFECode distribution, do the following:
+</p>
+
+<ol>
+<li> Set the environment variable CC to $PREFIX/clang.</li>
+<li> Set the environment variable CXX to $PREFIX/clang++.</li>
+<li> Set the environment variable CFLAGS to "-g -fsoftbound "</li>
+<li> Set the environment variable LDFLAGS to "-L$PREFIX/lib"
+where $PREFIX is the directory into which SAFECode was installed.</li>
+<li> Run the configure script</li>
+<li> Type "make" to compile the source code.</li>
+</ol>
+
+Note that some configure scripts may not use the LDFLAGS variable
+properly.  If the above directions do not work, try setting CFLAGS to
+"-g -fsoftbound -L$PREFIX/lib".
+</div>
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="sample"><b>Sample Debugging with SoftBoundCETS in SAFECode Distribution</b></a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+<p>
+Let's say that we have the following C program:
+</p>
+
+<pre>
+  1 #include "stdio.h"
+  2 #include "stdlib.h"
+  3 
+  4 int
+  5 foo (char * bar) {
+  6   for (unsigned index = 0; index < 10; ++index)
+  7     bar[index] = 'a';
+  8   return 0;
+  9 }
+ 10 
+ 11 int
+ 12 main (int argc, char ** argv) {
+ 13   char * array[100];
+ 14   int max = atoi (argv[1]);
+ 15 
+ 16   for (int index = max; index >= 0; --index) {
+ 17     array[index] = malloc (index+1);
+ 18   }
+ 19 
+ 20   for (int index = max; index >= 0; --index) {
+ 21     foo (array[index]);
+ 22   }
+ 23 
+ 24   exit (0);
+ 25 }
+</pre>
+
+<p>
+Lines 16-18 allocate character arrays of decreasing size, starting with the
+argument plus one specified by the user down to an array of one character.
+Lines 20-22 then call the function <tt>foo()</tt> which accesses elements 0-9
+of the array.
+</p>
+
+<p>
+If we compile this program with SoftBoundCETS within the SAFECode compiler and execute it:
+<ul>
+  <li><tt>clang -g -fsoftbound -o <i>test</i> <i>test.c</i> -L$PREFIX </tt></li>
+  <li><tt>./test 10</tt></li>
+</ul>
+
+We'll get the following error report:
+</p>
+
+<pre>
+
+In Store Dereference Check, base=0x60c050, bound=0x60c052, ptr=0x60c052, size_of_type=1, ptr+size=0x60c053
+
+Softboundcets: Bounds violation detected
+
+Backtrace:
+./test.out[0x4058fc]
+./test.out[0x405e83]
+./test.out[0x404f0d]
+./test.out[0x40563a]
+./test.out[0x405a45]
+/lib64/libc.so.6(__libc_start_main+0xfd)[0x7fcecaa70bfd]
+./test.out[0x404c99]
+
+
+Aborted
+
+</pre>
+
+<p>
+The first thing to note is the error type.  SoftBoundCETS is reporting
+a spatial safety violation with a store operation, meaning that some
+store is trying to access a memory location that it should not.  The
+value of the pointer is 0x60c052. The size of the access is of one
+byte. The bounds of the object that the pointer points to is
+[0x60c050, 0x60c52). Debugging the code in gdb reveals that the
+out-of-bound memory access occurs in function foo.
+
+</p>
+
+</div>
+</body>
+</html>
+

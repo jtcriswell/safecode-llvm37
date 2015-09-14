@@ -1,0 +1,28 @@
+# Set the location of the pool allocation project
+POOLALLOC_SRCDIR := @poolallocsrcdir@
+POOLALLOC_OBJDIR := @poolallocobjdir@
+
+# Set the location of the LLVM Test Suite
+TEST_SRCDIR := @testsrcdir@
+TEST_OBJDIR := @testobjdir@
+
+# Set flag indicating whether we should use libLTO when running test 
+# in the test suite.  Note that this flag doesn't control whether we 
+# build with libLTO, only if we use it in tests.
+USE_LTO := @enable_lto_tests@
+
+# All of the code should additionally look inside the pool allocation source
+# code for include files
+#SC_FLAGS = -DSAFECODE -I$(POOLALLOC_SRCDIR)/include -I$(POOLALLOC_OBJDIR)/include -Werror -Wall -pedantic
+SC_FLAGS = -DSAFECODE -I$(LLVM_SRC_ROOT)/projects/safecode/include -I$(LEVEL)/projects/safecode/include -I$(POOLALLOC_SRCDIR)/include -I$(POOLALLOC_OBJDIR)/include -Wall -pedantic
+
+# Code won't compile on newer gcc (4.4) due to strict aliasing violations
+SC_FLAGS += -fno-strict-aliasing
+CFLAGS   += $(SC_FLAGS)
+CPPFLAGS += $(SC_FLAGS)
+CXXFLAGS += $(SC_FLAGS) -Wno-deprecated
+LIBS     += @LIBS@
+
+# Include LLVM's Master Makefile.
+include $(LEVEL)/Makefile.common
+

@@ -1,0 +1,48 @@
+%%% ACM Double Column Format!
+\documentclass{article}
+%\usepackage{psfig}
+%\usepackage{euscript}
+%\usepackage{empheq}
+%\usepackage{amssymb}
+%\usepackage{wasysym}
+%\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{epsfig}
+\pagestyle{myheadings}
+\markright{SAFECode Software Architecture}
+
+\setlength{\parindent}{0.0in}
+\setlength{\parskip}{0.1in}
+
+\def\Comment#1{\textbf{\textsl{\large $\langle\!\langle$#1$\rangle\!\rangle$}} }
+
+\begin{document}
+
+\title{\Large \bf SAFECode Software Architecture Manual}
+
+\author{John Criswell}
+
+\maketitle
+\pagenumbering{arabic}
+
+%
+% Outline:
+%
+% o) Introduction
+% o) Structure
+%   o) Insertion of run-time checks
+%   o) Static array bounds checking passes
+%   o) Run-time check optimization
+%   o) Debug instrumentation
+%
+
+\input{intro}
+\input{struct}
+\input{layout}
+\input{checks}
+
+%\bibliographystyle{abbrv}
+%\bibliography{../bibtex/security,../bibtex/safecode,../bibtex/sva,../bibtex/optimization}
+
+\end{document}

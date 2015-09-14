@@ -1,0 +1,54 @@
+This file is a partial list of people who have contributed to the SAFECode
+project.  If you have contributed a patch or made some other contribution to
+SAFECode, please submit a patch to this file to add yourself, and it will be 
+done!
+
+The list is sorted by name and formatted to allow easy grepping and
+beautification by scripts.  The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+(S).
+
+N: Vikram Adve
+W: http://www.cs.illinois.edu/~vadve/
+D: Provider of much wisdom and motivator for SAFECode
+
+N: Aman Bhatia
+D: Performance evaluation
+
+N: John Criswell
+D: Primary Maintainer, Secure Virtual Architecture, Mac OS X port,
+D: Debug Tool Support, Bug fixes, Refactoring
+
+N: Dinakar Dhurjati
+D: Original architect of SAFECode
+
+N: Nicolas Geoffray
+D: Secure Virtual Architecture
+
+N: Sumant Kowshik
+D:
+
+N: Billy Lau
+D: Dangling pointer detection for Mac OS X
+
+N: Andrew Lenharth
+W: http://www.lenharth.org/~andrewl/
+D: Secure Virtual Architecture
+
+N: Brice Lin
+D: Standard C Library Checks, Testing
+
+N: Haohui Mai
+W: http://www.illinois.edu/~mai4
+D: Refactoring, Monotonic Loop Optimization, Local Array Bounds Checker
+D: Nightly Tester, Bug fixes
+
+N: Igor Murashkin
+D: Fast indirect call checks
+
+N: Reid Spencer
+W: http://reidspencer.com/
+D: Autoconf support (taken from LLVM project samples)
+
+N: Peter Finn
+D: Debugging SAFECode to work with LLVM Mainline

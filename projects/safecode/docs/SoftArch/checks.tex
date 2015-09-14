@@ -1,0 +1,135 @@
+%%-----------------------------------------------------------------------------
+\section{Run-time Checks and Instrumentation}
+\label{section:checks}
+%%-----------------------------------------------------------------------------
+
+%%-----------------------------------------------------------------------------
+\subsection{Complete vs. Incomplete Checks}
+\label{section:checks:complete}
+%%-----------------------------------------------------------------------------
+
+Most of the SAFECode run-time checks come in two flavors: complete
+and incomplete.  A complete check attempts to find the bounds of a
+memory object into which a pointer points; if it cannot find the
+memory object, then the pointer must be invalid, and the check fails.
+
+The problem with complete checks is that they only work when the
+compiler knows everything that can be known about a memory object.
+Sadly, this isn't always true; applications are linked with native
+code libraries compiled with other compilers (unthinkable, I know, but
+it happens); the SAFECode compiler cannot analyze native code, and so
+it does not know about memory objects allocated or freed by the
+library code (also known as \emph{external code}).
+
+Incomplete checks are SAFECode's way of permitting a mixture of
+SAFECode-compiled code and native external code; if a pointer could be
+manipulated by external code, SAFECode relaxes its run-time checks so
+that failure to find the referent memory object does not cause a
+run-time check to fail.
+
+By default, SAFECode makes all of its checks incomplete checks (this
+is because each compilation unit treats other compilation units as
+external code).  When used with libLTO, SAFECode can use points-to
+analysis to determine which incomplete checks can be converted into
+complete checks without causing false positives.
+
+Incomplete checks admit the possibility that memory safety errors will escape
+detection.  However, they make memory safety usable in practice, and
+so we use them.
+
+%%-----------------------------------------------------------------------------
+\subsection{Run-time Checks}
+\label{section:checks:checks}
+%%-----------------------------------------------------------------------------
+
+Below are the run-time checks that SAFECode may add to a program.
+Note that many of these functions have alternate versions for pointers
+that are determined to be incomplete or unknown by SAFECode's
+points-to analysis algorithm.
+
+\begin{itemize}
+\item{\tt poolcheck (void * pool, void * ptr, size\_t length)}: \\
+The {\tt poolcheck} call is used to instrument loads and stores to
+memory (including LLVM atomic operations).  It ensures that the
+pointer points within a memory object in the pool and that the load or
+store will not read/write past the end of the memory object.
+
+\item{\tt fastlscheck (void * ptr, void * start, size\_t objsz,
+size\_t len)}: \\
+The {\tt fastlscheck()} function is identical to the {\tt poolcheck()}
+function in functionality; the difference is that {\tt fastlscheck()}
+is passed the bounds of the memory object into which the pointer
+should point.  It is an optimized version of {\tt poolcheck()} that
+does not need to search for object bounds information in a side data
+structure.
+
+\item{\tt poolcheck\_align (void * pool, void * ptr)}: \\
+The {\tt poolcheck\_align()} function is used when type-safe
+load/store optimizations are enabled.  It is possible for a pointer which
+is type-safe to be loaded from a memory object which is not type-safe.
+When a type-safe pointer is loaded via a type-inconsistent pointer,
+{\tt poolcheck\_align()} verifies that the loaded pointer points
+within the specified pool at the correctly aligned offset for objects
+of its type.  This ensures that no further checks are needed when the
+type-safe pointer is used for loads and stores.
+
+\item{\tt free\_check (void * pool, void * ptr)}: \\
+The {\tt free\_check()} function checks that the pointer points to
+the beginning of a valid heap object.  It is used to catch invalid
+{\tt free} calls for allocators not known to tolerate invalid
+deallocation requests.
+
+\item{\tt boundscheck (void * pool, void * src, void * dest)}: \\
+The {\tt boundscheck()} function takes a source pointer and a
+destination pointer that is computed from the source pointer; the
+checks first determines whether the source pointer is within a valid
+memory object within the specified pool and, if so, that the
+destination pointer is within the same memory object.  It is primarily
+used for performing array and structure indexing checks on LLVM {\tt
+getelementptr} instructions.
+
+If the destination pointer goes out of bounds, then {\tt
+boundscheck()} returns a \emph{rewrite pointer}.  A rewrite pointer
+(or \emph{OOB pointer}) point to an unmapped portion of the address
+space.  They are used to allow pointers to go out of bounds so long as
+they are not dereferenced.
+
+\item{\tt exactcheck (void * src, void * dest, void * base, int
+objsize)}: \\
+The {\tt exactcheck()} function is a fast version of the {\tt
+boundscheck()} function that does not need to do an object bounds
+lookup.
+
+\item{\tt funccheck (void * ptr, void * targets[])}: \\
+The {\tt funccheck()} function determines if a function pointer
+belongs to the set of valid function pointer targets for an indirect
+function call.  It is used to ensure control-flow integrity.
+\end{itemize}
+
+SAFECode also instruments code with other functions to support the
+above run-time checks:
+
+\begin{itemize}
+\item{\tt getActualValue()}:
+The {\tt getActualValue()} function takes a value and determines if it
+is a rewrite pointer.  If it is, it returns the actual out-of-bounds
+value that the rewrite pointer represents.  Otherwise, it returns the
+original value.
+
+The {\tt getActualValue()} function is primarily used for supporting
+the comparison of pointers that have gone outside their object bounds.
+
+\item{\tt pool\_register()}:
+The {\tt pool\_register()} family of functions register the bounds of
+allocated memory objects in side data-structures; these are used to
+map a pointer to the memory object to which it belongs in run-time
+checks.
+
+Note that some memory objects may not be registered if SAFECode determines
+that their bounds are never needed.
+
+\item{\tt pool\_reregister()}:
+The {\tt pool\_reregister()} function unregisters a memory object and
+registers a new object of the specified size.  It is designed to
+support allocators like {\tt realloc()}.
+\end{itemize}

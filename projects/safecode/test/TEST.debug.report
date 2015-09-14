@@ -1,0 +1,52 @@
+##=== TEST.debug.report - Report description for SAFECode ----*- perl -*---===##
+#
+# This file defines a report to be generated for the debugging tool version of
+# SAFECode.
+#
+##===----------------------------------------------------------------------===##
+
+# Sort by program name
+$SortCol = 0;
+$TrimRepeatedPrefix = 1;
+
+# FormatTime - Convert a time from 1m23.45 into 83.45
+sub FormatTime {
+  my $Time = shift;
+  if ($Time =~ m/([0-9]+)[m:]([0-9.]+)/) {
+    return sprintf("%7.3f", $1*60.0+$2);
+  }
+
+  return sprintf("%6.2f", $Time);
+}
+
+
+sub RuntimePercent {
+  my ($Cols, $Col) = @_;
+  if ($Cols->[$Col-1] ne "*" and $Cols->[4] ne "*" and
+      $Cols->[4] != "0") {
+    return sprintf "%7.2f", 100*$Cols->[$Col-1]/$Cols->[4];
+  } else {
+    return "n/a";
+  }
+}
+
+@LatexColumns = (1, 5, 8, 12, 9, 13, 14, 15, 2, 16);
+
+my $FREEBENCH = 'MultiSource/Benchmarks/FreeBench';
+my $PTRDIST   = 'MultiSource/Benchmarks/Ptrdist';
+
+# These are the columns for the report.  The first entry is the header for the
+# column, the second is the regex to use to match the value.  Empty list create
+# seperators, and closures may be put in for custom processing.
+(
+# Name
+ ["Name:" , '\'([^\']+)\' Program'],
+ ["LOC"   , 'LOC:\s*([0-9]+)'],
+ [],
+# Times
+ ["GCC",         'GCC-RUN-TIME: user\s*([.0-9m:]+)', \&FormatTime],
+ [],
+ ["SC",          'CBE-RUN-TIME-SAFECODE: user\s*([.0-9m:]+)', \&FormatTime],
+ []
+);
+

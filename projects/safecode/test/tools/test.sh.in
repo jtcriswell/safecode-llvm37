@@ -1,0 +1,146 @@
+#!/bin/bash -e
+
+#
+# This script is used to compile and test a single file with SAFECode.
+#
+
+expect_error=1
+test_llvm_code=0
+
+usage()
+{
+  echo 'usage: test.sh [args] file.c/file.ll'
+  echo 'arguments:'
+  echo '   -t dir    directory to use for testing'
+  echo '   -s string generated llvm code must contain string for 
+  echo '             the test to pass. 
+  echo '   -p        expect no SAFEcode errors from the test case'
+  echo '   -e        expect a SAFEcode error from the test case'
+  echo '   -l file   link in file when linking the executable'
+}
+
+# Process the arguments.
+link_files=''
+while getopts hepl:t:cfs: option
+  do
+    case $option in
+      s) test_llvm_code=1
+         llvm_test_string=$OPTARG;;
+      e) expect_error=1;;
+      l) link_files=$link_files' '$OPTARG;;
+      p) expect_error=0;;
+      t) testdir=$OPTARG;;
+      h) usage
+         exit 1;;
+      \?) exit 1;;
+    esac
+  done
+
+# Get the file argument.
+shift $((OPTIND-1))
+
+# If there is no file, print usage information and exit.
+if [ $# -lt 1 ]
+then
+  usage
+  exit 1
+fi
+
+sc=@SC@
+sc_lib=@SC_LIB@
+
+filename=$1
+# Directory to use for temporary files.
+testdir=${testdir:-$(dirname $filename)}
+filebase=$(basename $filename)
+case $filebase in
+  *.ll) prefix=${filebase%%.ll}
+        filetype=ll;;
+   *.c) prefix=${filebase%%.c}
+        filetype=c;;
+     *) echo "unknown file type"
+        exit 1;;
+esac
+# SAFECode-compiled bitcode
+llfile=$testdir/${prefix}.sc.ll
+# Compiled executable
+scfile=$testdir/${prefix}.sc
+# SAFECode compilation log
+sclog=$testdir/${prefix}.sc.log
+# Executable output
+scout=$testdir/${prefix}.sc.output
+# grep pattern file
+patternfile=$testdir/${prefix}.sc.pattern
+
+# Prepare the testing directory.
+setupdir()
+{
+  # Add temporary directory.
+  mkdir -p $testdir
+}
+
+# Compile the bitcode of the test.
+compile()
+{
+  # Create bitcode file with SAFECode passes.
+  $sc -g -S -emit-llvm -fmemsafety -fmemsafety-terminate -o $llfile $filename 2>&1 | tee $sclog
+  # Compile and link bitcode.
+  $sc -o $scfile $llfile $link_files $sc_lib/libsc_dbg_rt.a $sc_lib/libpoolalloc_bitmap.a $sc_lib/libgdtoa.a -lstdc++
+}
+
+# If requested, verify that the llvm code contains the 
+# expected string.
+codecheck()
+{
+  code_ok=1
+  if [ $test_llvm_code -eq 1 ]
+  then
+    # don't exit if grep fails
+    set +e
+    echo $llvm_test_string > $patternfile
+    grep -q -f $patternfile $llfile
+    if [ $? -ne 0 ]
+    then
+        code_ok=0
+    fi
+    set -e
+  fi
+}
+
+# Run test and check results.
+runtest()
+{
+  # Don't exit immediately on failure of below commands.
+  set +e
+  $scfile >& $scout
+  retval=$?
+  error_count=$(grep -c SAFECode $scout)
+  # increment the error count if code check failed
+  if [ $code_ok -eq 0 ]
+  then
+    error_count=$((1 + $error_count ))
+  fi
+  set -e
+  if [ $error_count -gt 0 ]
+  then
+    if [ $expect_error -eq 1 ]
+    then
+      exit 0 # An error was expected and caught.
+    else
+      exit 1 # An unexpected error occurred.
+    fi
+  else
+    if [ $retval -eq 0 -a $expect_error -eq 0 ]
+    then
+      exit 0 # No error was expected, none was caught, program ran as expected.
+    else
+      exit 1 # Some non-SAFECode related error occurred, or a SAFECode error
+             # was expected.
+    fi
+  fi
+}
+
+setupdir
+compile
+codecheck
+runtest

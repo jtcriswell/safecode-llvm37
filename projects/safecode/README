@@ -1,0 +1,18 @@
+SAFECode Compiler
+=================
+
+Welcome to the SAFECode compiler!
+
+The software is licensed under the University of Illinois open source license
+located in LICENSE.TXT in the top-level directory.  If there is any third-party
+code with different or additional licensing information, it will have a
+separate LICENSE.TXT in its top-level directory.
+
+Documentation can be found in the docs directory.  The installation guide is in
+docs/Install.html.  A User's Guide describing the use of the sc tool is in
+docs/UsersGuide.html
+
+
+Enjoy it!
+
+/* test to see if svn commit is working -- JRM */
