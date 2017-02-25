@@ -168,16 +168,19 @@ RegisterRuntimeInitializer::insertInitializerIntoGlobalCtorList(Module & M) {
   Function * RuntimeCtor = M.getFunction ("pool_ctor");
 
   //
-  // Insert the run-time ctor into the ctor list.
+  // Create needed types.
   //
   Type * Int32Type = IntegerType::getInt32Ty(M.getContext());
-  std::vector<Constant *> CtorInits;
+  PointerType * CharPointer = PointerType::getInt8PtrTy(M.getContext());
 
   //
+  // Insert the run-time ctor into the ctor list.
   // Make the priority 1 so we can allow the poolalloc constructor to go first.
   //
+  std::vector<Constant *> CtorInits;
   CtorInits.push_back (ConstantInt::get (Int32Type, 1));
   CtorInits.push_back (RuntimeCtor);
+  CtorInits.push_back (ConstantPointerNull::get (CharPointer));
   StructType * ST = ConstantStruct::getTypeForElements (CtorInits, false);
   Constant * RuntimeCtorInit = ConstantStruct::get (ST, CtorInits);
 
@@ -191,6 +194,7 @@ RegisterRuntimeInitializer::insertInitializerIntoGlobalCtorList(Module & M) {
     if (Constant * C = GVCtor->getInitializer()) {
       for (unsigned index = 0; index < C->getNumOperands(); ++index) {
         CurrentCtors.push_back (dyn_cast<Constant>(C->getOperand (index)));
+	CurrentCtors.back()->dump();
       }
     }
   }
